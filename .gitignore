@@ -1,0 +1,14 @@
+# Jenkins API tokens — NEVER commit
+*_token.txt
+qe_token.txt
+qa_token.txt
+
+# Slack workflow webhook URL — NEVER commit
+slack_workflow.txt
+*_webhook.txt
+
+# python venv + caches
+env/
+venv/
+__pycache__/
+*.pyc

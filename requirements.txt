@@ -1,0 +1,2 @@
+couchbase>=4.6.0
+# HTTP uses stdlib urllib — no other runtime deps.
