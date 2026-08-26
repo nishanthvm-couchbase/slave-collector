@@ -666,6 +666,13 @@ def dry_run(master_key, agent_name, use_ai=False):
 def main():
     log.info("slaves-collector starting — masters=%s bucket=%s poll=%ds sample=%ds",
              [m["key"] for m in C.MASTERS], C.CB_BUCKET, C.STATE_POLL_SEC, C.SAMPLE_EVERY_SEC)
+    if C.ALERTS_ENABLED:
+        log.info("alerting ON — K=%d min_distinct=%d fleet_suppress=%d | ollama=%s | slack=%s",
+                 C.ALERT_K, C.ALERT_MIN_DISTINCT, C.ALERT_FLEET_SUPPRESS,
+                 "set" if C.OLLAMA_URL else "off (alerts without AI note)",
+                 "set" if C.SLACK_WORKFLOW_URL else "MISSING (will log-only, no Slack!)")
+    else:
+        log.info("alerting OFF — set SLAVES_ALERTS_ENABLED=true to enable")
     resolve_tokens()   # env → file → interactive prompt (before any Jenkins call)
     coll()
     seed_from_cb()
