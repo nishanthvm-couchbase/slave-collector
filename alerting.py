@@ -188,10 +188,58 @@ def parse_ollama(resp_json):
 
 
 # ── Slack workflow payload (flat string vars) ──────────────────────────────────
+# severity emoji by verdict; ⚠️ when we couldn't classify the model reply
+_SEVERITY = {"infra": "🔴", "test": "🧪", "unclear": "❓"}
+_ANALYSIS_LINE = re.compile(r"(?i)^\s*(VERDICT|CONFIDENCE|REASONING|RECOMMENDATION)\s*:\s*(.*)$")
+
+
+def _parse_analysis(raw):
+    """Pull VERDICT/CONFIDENCE/REASONING/RECOMMENDATION out of the model reply.
+    Continuation lines fold into the current field. Missing fields -> ''."""
+    out = {"VERDICT": "", "CONFIDENCE": "", "REASONING": "", "RECOMMENDATION": ""}
+    if not raw:
+        return out
+    current = None
+    for line in raw.splitlines():
+        m = _ANALYSIS_LINE.match(line)
+        if m:
+            current = m.group(1).upper()
+            out[current] = m.group(2).strip()
+        elif current and line.strip():
+            out[current] = (out[current] + " " + line.strip()).strip()
+    return out
+
+
+def severity_emoji(analysis):
+    return _SEVERITY.get(_parse_analysis(analysis).get("VERDICT", "").lower(), "⚠️")
+
+
+def format_analysis(analysis):
+    """Turn the raw model reply into a compact, emoji-anchored block for Slack.
+    Slack renders workflow-variable values as PLAIN TEXT, so we lean on emoji +
+    structure (markdown would show literally). Falls back to the raw text if the
+    reply didn't follow the expected VERDICT/CONFIDENCE/… shape."""
+    if not analysis or not analysis.strip():
+        return "AI triage unavailable."
+    f = _parse_analysis(analysis)
+    if not any(f.values()):
+        return analysis.strip()[:2800]
+    verdict = (f["VERDICT"] or "unclear").lower()
+    head = _SEVERITY.get(verdict, "⚠️") + "  " + verdict
+    if f["CONFIDENCE"]:
+        head += "  ·  confidence: " + f["CONFIDENCE"].lower()
+    lines = [head]
+    if f["REASONING"]:
+        lines.append("Why:  " + f["REASONING"])
+    if f["RECOMMENDATION"]:
+        lines.append("Do:   " + f["RECOMMENDATION"])
+    return "\n".join(lines)[:2800]
+
+
 def workflow_payload(master, agent, incident, analysis, agent_url):
     jobs = ", ".join(incident.get("jobs", []))
-    summary = ("Build slave `%s` on %s looks problematic: %s consecutive failures across %s. "
-               "Consider taking it offline." % (agent, master, incident.get("streak"), jobs))
+    summary = ("%s Build slave %s on %s — %s consecutive failures across %s. Consider taking it offline."
+               % (severity_emoji(analysis), agent, master, incident.get("streak"), jobs))
     return {
         "slave": str(agent),
         "master": str(master),
@@ -199,7 +247,7 @@ def workflow_payload(master, agent, incident, analysis, agent_url):
         "jobs": jobs,
         "url": agent_url or "",
         "summary": summary,
-        "analysis": (analysis or "AI triage unavailable.")[:2800],
+        "analysis": format_analysis(analysis),
     }
 
 

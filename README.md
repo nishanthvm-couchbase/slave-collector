@@ -149,8 +149,10 @@ lay the message out using them. Slack gives you the webhook URL to put above.
 | `streak` | `5` |
 | `jobs` | `test_a, test_b, test_c` |
 | `url` | link to the Jenkins agent page |
-| `summary` | one-line "slave X looks problematic, consider taking it offline" |
-| `analysis` | the Ollama triage (verdict / reasoning / recommendation) |
+| `summary` | pre-formatted one-liner, e.g. `🔴 Build slave qe-slave-07 on qe — 5 consecutive failures across …` |
+| `analysis` | pre-formatted triage block, e.g. `🔴  infra  ·  confidence: high` then `Why:` / `Do:` lines |
+
+_Severity emoji, prepended by the collector: 🔴 infra · 🧪 test · ❓ unclear · ⚠️ unclassified. Slack renders variable values as plain text, so the message leans on emoji + structure rather than markdown._
 
 ### Dry-run — verify redaction on REAL logs before enabling
 
