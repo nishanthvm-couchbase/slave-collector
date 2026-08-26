@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#243149"/>
+      <stop offset="1" stop-color="#0a0f1c"/>
+    </linearGradient>
+    <linearGradient id="unit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3852"/>
+      <stop offset="1" stop-color="#1a2334"/>
+    </linearGradient>
+    <linearGradient id="rack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141d2c"/>
+      <stop offset="1" stop-color="#0d141f"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- rack body -->
+  <rect x="138" y="90" width="236" height="332" rx="28" fill="url(#rack)" stroke="#3d4d68" stroke-width="4"/>
+
+  <!-- unit 1 -->
+  <rect x="162" y="114" width="188" height="58" rx="11" fill="url(#unit)" stroke="#3d4d68" stroke-width="2"/>
+  <circle cx="190" cy="143" r="7" fill="#22c55e"/>
+  <circle cx="214" cy="143" r="7" fill="#eab308"/>
+  <rect x="248" y="136" width="80" height="14" rx="7" fill="#3a4a63"/>
+
+  <!-- unit 2 -->
+  <rect x="162" y="180" width="188" height="58" rx="11" fill="url(#unit)" stroke="#3d4d68" stroke-width="2"/>
+  <circle cx="190" cy="209" r="7" fill="#22c55e"/>
+  <circle cx="214" cy="209" r="7" fill="#22c55e"/>
+  <rect x="248" y="202" width="80" height="14" rx="7" fill="#3a4a63"/>
+
+  <!-- unit 3 (the troubled one) -->
+  <rect x="162" y="246" width="188" height="58" rx="11" fill="url(#unit)" stroke="#3d4d68" stroke-width="2"/>
+  <circle cx="190" cy="275" r="7" fill="#ef4444"/>
+  <circle cx="214" cy="275" r="7" fill="#eab308"/>
+  <rect x="248" y="268" width="80" height="14" rx="7" fill="#3a4a63"/>
+
+  <!-- monitor strip with red heartbeat -->
+  <rect x="162" y="314" width="188" height="90" rx="12" fill="#080d16" stroke="#3d4d68" stroke-width="2"/>
+  <path d="M178 360 H236 l13 -34 18 66 13 -32 H334"
+        fill="none" stroke="#ef4444" stroke-width="11"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+</svg>
