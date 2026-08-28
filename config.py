@@ -112,14 +112,20 @@ REDACT_IPS      = os.environ.get("SLAVES_REDACT_IPS", "false").lower() == "true"
 # ── Ollama (self-hosted CPU box; analysis only) ──────────────────────────────
 OLLAMA_URL         = os.environ.get("OLLAMA_URL", "http://172.23.217.9:11434")
 OLLAMA_MODEL       = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b-instruct")
-# CPU inference of a 7B is slow, and a COLD call (model not resident) also pays a
-# one-time model-load. Measured ~140s cold on the 12GB/8-core box, so the timeout
-# is generous — it runs on a background worker, so a long wait costs nothing.
-OLLAMA_TIMEOUT     = int(os.environ.get("OLLAMA_TIMEOUT", "300"))
-OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "400"))
-# keep the model resident between (rare) alerts so clustered incidents stay fast.
-# "-1" = never unload (costs ~6GB RAM permanently on the dedicated Ollama box).
-OLLAMA_KEEP_ALIVE  = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
+# CPU inference of a 7B is slow AND highly variable: a COLD call (model not
+# resident) pays a model-load, and a full triage measured ~3-5 min on the 12GB/
+# 8-core box — enough to blow a 300s timeout, which is why alerts showed
+# "AI triage unavailable". Three mitigations, all here:
+#   (a) a background WARMER keeps the model resident so alert calls are warm (~1m),
+#   (b) the timeout is generous (triage is off the poll path — a long wait is free),
+#   (c) the output is capped so a runaway generation can't blow the timeout.
+OLLAMA_TIMEOUT     = int(os.environ.get("OLLAMA_TIMEOUT", "600"))
+OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "300"))
+# keep the model resident between (hours-apart) alerts so EVERY alert is warm.
+# The warmer re-pings every OLLAMA_WARM_SEC (kept < keep_alive) to hold it in RAM.
+# "-1" = never unload (costs ~5GB RAM on the dedicated Ollama box).
+OLLAMA_KEEP_ALIVE  = os.environ.get("OLLAMA_KEEP_ALIVE", "60m")
+OLLAMA_WARM_SEC    = int(os.environ.get("OLLAMA_WARM_SEC", "1500"))   # 25 min; 0 disables the warmer
 
 # ── Slack (Workflow Builder "webhook" trigger; analysis only) ─────────────────
 # Only secret is the workflow webhook URL. Channel/recipients + message layout

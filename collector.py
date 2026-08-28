@@ -369,6 +369,39 @@ def ollama_chat(messages):
         return None
 
 
+def ollama_warm():
+    """Load / keep the triage model resident. A CPU cold-load + full generation
+    can push a triage past the timeout; a resident model keeps each alert warm
+    (~1 min). Best-effort — a tiny 1-token /api/generate just to pin it in RAM."""
+    if not C.OLLAMA_URL:
+        return False
+    payload = json.dumps({
+        "model": C.OLLAMA_MODEL, "prompt": "ok", "stream": False,
+        "keep_alive": C.OLLAMA_KEEP_ALIVE, "options": {"num_predict": 1},
+    }).encode("utf-8")
+    req = urllib.request.Request(C.OLLAMA_URL.rstrip("/") + "/api/generate", data=payload,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=C.OLLAMA_TIMEOUT) as r:
+            r.read()
+        return True
+    except Exception as e:
+        log.warning("ollama warm failed: %s", e)
+        return False
+
+
+def _warmer_loop():
+    """Warm on startup, then re-warm every OLLAMA_WARM_SEC (< keep_alive) so the
+    model never unloads between the hours-apart alerts."""
+    warm = False
+    while True:
+        ok = ollama_warm()
+        if ok and not warm:
+            log.info("ollama model warmed & resident (%s)", C.OLLAMA_MODEL)
+        warm = ok
+        time.sleep(max(60, C.OLLAMA_WARM_SEC))
+
+
 def slack_workflow(payload):
     """POST a flat JSON of string vars to the Slack Workflow webhook. The
     workflow (built in Slack) owns channel/recipients/message layout."""
@@ -676,6 +709,9 @@ def main():
     resolve_tokens()   # env → file → interactive prompt (before any Jenkins call)
     coll()
     seed_from_cb()
+    if C.ALERTS_ENABLED and C.OLLAMA_URL and C.OLLAMA_WARM_SEC > 0:
+        threading.Thread(target=_warmer_loop, name="ollama-warmer", daemon=True).start()
+        log.info("ollama warmer on — model=%s every %ds keep_alive=%s", C.OLLAMA_MODEL, C.OLLAMA_WARM_SEC, C.OLLAMA_KEEP_ALIVE)
     global _last_sample_at
     while True:
         now = time.time()
