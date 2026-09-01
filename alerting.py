@@ -214,6 +214,13 @@ def severity_emoji(analysis):
     return _SEVERITY.get(_parse_analysis(analysis).get("VERDICT", "").lower(), "⚠️")
 
 
+def verdict_of(analysis):
+    """The model's VERDICT word, lowercased ('infra'|'test'|'unclear'), or '' if
+    the reply was empty/unparseable (e.g. Ollama unavailable). Used to decide
+    whether an alert is about the SLAVE (notify) or the TESTS (suppress)."""
+    return (_parse_analysis(analysis).get("VERDICT") or "").strip().lower()
+
+
 def format_analysis(analysis):
     """Turn the raw model reply into a compact, emoji-anchored block for Slack.
     Slack renders workflow-variable values as PLAIN TEXT, so we lean on emoji +

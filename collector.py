@@ -445,9 +445,18 @@ def _fire_alert(master, agent, incident, key, prev, now_ms):
     mk, name = master["key"], agent["name"]
     snippet = _build_snippet(master, agent)
     analysis = ollama_chat(A.ollama_messages(name, mk, incident, snippet)) if C.OLLAMA_URL else None
-    notified = slack_workflow(A.workflow_payload(mk, name, incident, analysis, _agent_url(master, name)))
+    verdict = A.verdict_of(analysis)   # 'infra' | 'test' | 'unclear' | '' (AI unavailable)
+    # This channel is for PROBLEMATIC SLAVES only. If the AI is confident the
+    # failures are a TEST/product issue (not the agent), record it but DON'T
+    # notify. Anything else (infra, unclear, or AI unavailable) → notify, so we
+    # never miss a real slave problem just because triage was inconclusive.
+    suppressed = (verdict == "test")
+    notified = False
+    if not suppressed:
+        notified = slack_workflow(A.workflow_payload(mk, name, incident, analysis, _agent_url(master, name)))
     cb_upsert(key, {
         "type": "slavealert", "master": mk, "name": name, "status": "firing",
+        "verdict": verdict, "suppressed": suppressed,
         "streak": incident["streak"], "jobs": incident["jobs"], "builds": incident["builds"],
         "snippet": snippet, "analysis": analysis or "", "notified": bool(notified),
         "firstDetectedTs": (prev or {}).get("firstDetectedTs") or now_ms,
@@ -455,8 +464,9 @@ def _fire_alert(master, agent, incident, key, prev, now_ms):
     })
     with _alert_lock:
         firing[mk].add(name)
-    log.warning("[%s] ALERT slave=%s streak=%d jobs=%s notified=%s ai=%s",
-                mk, name, incident["streak"], ",".join(incident["jobs"]), notified, bool(analysis))
+    log.warning("[%s] %s slave=%s verdict=%s streak=%d jobs=%s notified=%s ai=%s",
+                mk, "SUPPRESSED-test" if suppressed else "ALERT", name, verdict or "n/a",
+                incident["streak"], ",".join(incident["jobs"]), notified, bool(analysis))
 
 
 def _resolve_alert(master, name, now_ms):
@@ -467,11 +477,14 @@ def _resolve_alert(master, name, now_ms):
     prev = cb_get(key)
     if not prev:
         return
+    was_notified = bool(prev.get("notified"))
     prev.update({"status": "resolved", "resolvedTs": now_ms, "ts": now_ms})
     cb_upsert(key, prev)
-    if C.ALERT_NOTIFY_RECOVER:
+    # only announce recovery if we announced the problem — a suppressed test-issue
+    # alert was never sent, so a "recovered" note would be confusing.
+    if C.ALERT_NOTIFY_RECOVER and was_notified:
         slack_workflow(A.recover_payload(mk, name, _agent_url(master, name)))
-    log.info("[%s] RESOLVED slave=%s", mk, name)
+    log.info("[%s] RESOLVED slave=%s (notified=%s)", mk, name, was_notified)
 
 
 def _alert_worker():

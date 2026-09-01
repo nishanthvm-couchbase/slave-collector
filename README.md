@@ -117,7 +117,11 @@ Pipeline (only runs when an agent actually trips — rare, so it's off the hot p
    your cluster password) **before anything leaves the box**. Internal `172.23.*`
    IPs are kept (useful, not secret) unless `REDACT_IPS=true`.
 6. **Analyze** — POST the redacted snippet to Ollama (`/api/chat`); store the reply.
-7. **Notify** — POST a flat JSON to a Slack **Workflow** webhook.
+7. **Classify → notify (or drop)** — this channel is for *problematic slaves* only.
+   If the AI verdict is **`test`** (a test/product bug, not the agent), the alert
+   is **recorded but NOT sent to Slack**. Verdict `infra` / `unclear` / or AI
+   unavailable → POST a flat JSON to the Slack **Workflow** webhook (err toward
+   flagging real slave problems). Suppressed alerts also skip the "recovered" note.
 
 Alerts are **edge-triggered + deduped**: fire once per incident (state in
 `alert::<master>::<name>`), auto-resolve when a build passes again, and are capped
